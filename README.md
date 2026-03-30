@@ -7,21 +7,21 @@ Control and monitor the **HaWake Alarm** iOS app from Home Assistant. Dismiss al
 
 ---
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [MQTT Broker Setup](#mqtt-broker-setup)
-- [Configuration](#configuration)
-- [Entities](#entities)
-- [Services](#services)
-- [Example Automations](#example-automations)
-- [MQTT Topic Structure](#mqtt-topic-structure)
-- [Links](#links)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [MQTT Broker Setup](#-mqtt-broker-setup)
+- [Configuration](#-configuration)
+- [Entities](#-entities)
+- [Services](#-services)
+- [Example Automations](#-example-automations)
+- [MQTT Topic Structure](#-mqtt-topic-structure)
+- [Links](#-links)
 
 ---
 
-## Requirements
+## ✅ Requirements
 
 - [HaWake Alarm](https://apps.apple.com/app/hawake-alarm/id0000000000) iOS app (v2.0+)
 - A running MQTT broker (e.g. Mosquitto via the HA add-on)
@@ -30,7 +30,7 @@ Control and monitor the **HaWake Alarm** iOS app from Home Assistant. Dismiss al
 
 ---
 
-## Installation
+## 📦 Installation
 
 ### Via HACS (recommended)
 
@@ -46,9 +46,9 @@ Control and monitor the **HaWake Alarm** iOS app from Home Assistant. Dismiss al
 
 ---
 
-## MQTT Broker Setup
+## 📡 MQTT Broker Setup
 
-Create a dedicated MQTT user for the HaWake app and lock it down to only the topics it needs. This keeps the app isolated from the rest of your broker.
+Create a dedicated MQTT user for the HaWake app and restrict it to only the topics it needs. This keeps the app isolated from the rest of your broker.
 
 ### Step 1 — Create a dedicated user
 
@@ -83,7 +83,7 @@ This grants the `hawake` user read/write access to every topic under the configu
 | **App → Broker** (publish) | `hawake/{device}/sensor/…` · `hawake/{device}/alarm/…` · `hawake/{device}/availability` · `hawake/{device}/arm/state` |
 | **App ← Broker** (subscribe) | `hawake/{device}/command/…` · `hawake/{device}/alarm/…/command/…` · `hawake/{device}/arm/command` |
 
-> If you use a custom topic prefix in the app (e.g. `myhome`), replace `hawake/#` with `myhome/#`.
+> **Custom prefix?** If you use a different topic prefix in the app (e.g. `myhome`), replace `hawake/#` with `myhome/#`.
 
 **Restart the Mosquitto add-on** again to apply the ACL.
 
@@ -100,9 +100,11 @@ In the HaWake iOS app, go to **Settings → MQTT Settings** and enter:
 | Username | `hawake` |
 | Password | The password you set in Step 1 |
 
+> **Tip:** Use the [MQTT Payload Builder](https://domoretechnet.github.io/HaWake-info/mqtt-builder.html) to generate and test payloads before wiring up automations.
+
 ---
 
-## Configuration
+## ⚙️ Configuration
 
 1. Open **Settings → Devices & Services → Add Integration**
 2. Search for **HaWake Alarm**
@@ -114,13 +116,14 @@ You can add multiple devices (one integration entry per iPhone).
 
 ---
 
-## Entities
+## 🔌 Entities
 
-The integration creates several entity types across a main dashboard device and one sub-device per alarm.
+The integration creates entities across a main dashboard device and one sub-device per alarm.
 
 ### Sensors
 
-Dashboard-level sensors reflecting the currently active alarm and app state:
+<details>
+<summary>View all dashboard sensors</summary>
 
 | Sensor | Description |
 |---|---|
@@ -150,6 +153,8 @@ Dashboard-level sensors reflecting the currently active alarm and app state:
 | Quick Alarm Label | Label of the quick alarm |
 | Quick Alarm Count | Number of active quick alarms |
 | Sleep Sound Volume | Current sleep sounds volume (%) |
+
+</details>
 
 ### Binary Sensor
 
@@ -220,7 +225,7 @@ data:
 
 ---
 
-## Services
+## 🛠 Services
 
 ### `hawake.update_alarm`
 
@@ -288,7 +293,7 @@ data:
 
 ---
 
-## Example Automations
+## 🤖 Example Automations
 
 ### Re-enable a work alarm on Sunday evening
 
@@ -351,7 +356,7 @@ automation:
 
 ---
 
-## MQTT Topic Structure
+## 🗺 MQTT Topic Structure
 
 All topics follow the pattern `{prefix}/{device}/…`
 
@@ -365,10 +370,13 @@ All topics follow the pattern `{prefix}/{device}/…`
 | HA → App | `hawake/iphone/alarm/{n}/command/{cmd}` | Per-alarm commands |
 | HA → App | `hawake/iphone/arm/command` | Arm command |
 
+> Use the [MQTT Payload Builder](https://domoretechnet.github.io/HaWake-info/mqtt-builder.html) to interactively construct and copy payloads for any of these topics.
+
 ---
 
-## Links
+## 🔗 Links
 
 - [HaWake App](https://hawake.app)
+- [MQTT Payload Builder](https://domoretechnet.github.io/HaWake-info/mqtt-builder.html)
 - [MQTT Reference](https://hawake.app/docs/hass-api)
 - [Report an issue](https://github.com/hawake/hawake-hacs/issues)
