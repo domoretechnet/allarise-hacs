@@ -34,12 +34,14 @@ Control and monitor the **HaWake Alarm** iOS app from Home Assistant. Dismiss al
 
 After installing, complete setup in four steps:
 
-1. Create a dedicated MQTT user for the app in your Mosquitto broker and restrict it to `hawake/#`
-2. Connect the HaWake iOS app (**Settings → MQTT Settings**) to your broker
-3. Add the **HaWake Alarm** integration in **Settings → Devices & Services**
-4. Match the Device Name and Topic Prefix between the app and the integration
+1. Create a dedicated MQTT user for the app in your Mosquitto broker
+2. **Create an ACL file** restricting that user to `hawake/#` topics only — this is strongly recommended to keep the app isolated from the rest of your broker
+3. Connect the HaWake iOS app (**Settings → MQTT Settings**) to your broker
+4. Add the **HaWake Alarm** integration in **Settings → Devices & Services** and match the Device Name and Topic Prefix to what you set in the app
 
 > **Defaults:** Device Name = `iPhone` · Topic Prefix = `hawake`
+
+> ⚠️ **Skip the ACL at your own risk.** Without it, the HaWake app user has access to all topics on your broker. The full setup guide includes copy-ready Mosquitto config and ACL file contents.
 
 **[Full setup guide with MQTT configuration, ACL setup, entity reference, services, and example automations →](https://hawake.app/home-assistant.html)**
 
