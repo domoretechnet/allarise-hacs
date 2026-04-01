@@ -1,4 +1,4 @@
-"""Button platform for HaWake Alarm integration."""
+"""Button platform for Allarise Alarm integration."""
 
 from __future__ import annotations
 
@@ -13,51 +13,51 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 import json
 
 from .const import DASHBOARD_BUTTONS, DOMAIN, PER_ALARM_BUTTONS, QUICK_ALARM_BUTTONS
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[HaWakeCoordinator],
+    entry: ConfigEntry[AllariseCoordinator],
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HaWake buttons."""
+    """Set up Allarise buttons."""
     coordinator = entry.runtime_data
     entities: list[ButtonEntity] = []
 
     # Dashboard buttons
     for key, name_suffix, icon in DASHBOARD_BUTTONS:
         entities.append(
-            HaWakeDashboardButton(coordinator, key, name_suffix, icon)
+            AllariseDashboardButton(coordinator, key, name_suffix, icon)
         )
 
     # Quick Alarm buttons — Dismiss (when ringing) and Delete (cancel pending)
     for key, name_suffix, icon in QUICK_ALARM_BUTTONS:
         entities.append(
-            HaWakeQuickAlarmButton(coordinator, key, name_suffix, icon)
+            AllariseQuickAlarmButton(coordinator, key, name_suffix, icon)
         )
 
     async_add_entities(entities)
 
     # Register factory for dynamic per-alarm button creation
-    def _button_factory(coord: HaWakeCoordinator, alarm_index: int) -> list:
+    def _button_factory(coord: AllariseCoordinator, alarm_index: int) -> list:
         return [
-            HaWakePerAlarmButton(coord, alarm_index, key, name_suffix, icon)
+            AllarisePerAlarmButton(coord, alarm_index, key, name_suffix, icon)
             for key, name_suffix, icon in PER_ALARM_BUTTONS
         ]
 
     coordinator.register_alarm_entity_factory(_button_factory, async_add_entities)
 
 
-class HaWakeDashboardButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
-    """A dashboard button for HaWake (dismiss, snooze, skip, kill_snoozed)."""
+class AllariseDashboardButton(CoordinatorEntity[AllariseCoordinator], ButtonEntity):
+    """A dashboard button for Allarise (dismiss, snooze, skip, kill_snoozed)."""
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
-        coordinator: HaWakeCoordinator,
+        coordinator: AllariseCoordinator,
         key: str,
         name_suffix: str,
         icon: str,
@@ -67,15 +67,15 @@ class HaWakeDashboardButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
         self._key = key
         self._attr_name = name_suffix
         self._attr_icon = icon
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_{key}"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_{key}"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 
@@ -104,7 +104,7 @@ class HaWakeDashboardButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
         self.async_write_ha_state()
 
 
-class HaWakePerAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
+class AllarisePerAlarmButton(CoordinatorEntity[AllariseCoordinator], ButtonEntity):
     """A per-alarm button — grouped under the per-alarm device."""
 
     _attr_has_entity_name = True
@@ -112,7 +112,7 @@ class HaWakePerAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
 
     def __init__(
         self,
-        coordinator: HaWakeCoordinator,
+        coordinator: AllariseCoordinator,
         alarm_index: int,
         key: str,
         name_suffix: str,
@@ -125,7 +125,7 @@ class HaWakePerAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
         self._attr_name = name_suffix
         self._attr_icon = icon
         self._attr_unique_id = (
-            f"hawake_{coordinator.device_name}_alarm_{alarm_index}_{key}"
+            f"allarise_{coordinator.device_name}_alarm_{alarm_index}_{key}"
         )
 
     @property
@@ -133,13 +133,13 @@ class HaWakePerAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
         """Return device info — each alarm index is its own device."""
         alarm_name = self.coordinator.get_per_alarm_state(self._alarm_index, "name")
         if alarm_name in ("Unknown", ""):
-            display_name = f"HaWake {self.coordinator.device_name} - Alarm {self._alarm_index}"
+            display_name = f"Allarise {self.coordinator.device_name} - Alarm {self._alarm_index}"
         else:
-            display_name = f"HaWake {self.coordinator.device_name} - {alarm_name}"
+            display_name = f"Allarise {self.coordinator.device_name} - {alarm_name}"
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_alarm_{self._alarm_index}")},
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_alarm_{self._alarm_index}")},
             name=display_name,
-            manufacturer="HaWake",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 
@@ -181,7 +181,7 @@ class HaWakePerAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
         self.async_write_ha_state()
 
 
-class HaWakeQuickAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity):
+class AllariseQuickAlarmButton(CoordinatorEntity[AllariseCoordinator], ButtonEntity):
     """A quick alarm button — grouped under the Quick Alarm device.
 
     Only dismiss (when a quick alarm is ringing) and delete_quick_alarm
@@ -194,7 +194,7 @@ class HaWakeQuickAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity)
 
     def __init__(
         self,
-        coordinator: HaWakeCoordinator,
+        coordinator: AllariseCoordinator,
         key: str,
         name_suffix: str,
         icon: str,
@@ -204,15 +204,15 @@ class HaWakeQuickAlarmButton(CoordinatorEntity[HaWakeCoordinator], ButtonEntity)
         self._key = key
         self._attr_name = name_suffix
         self._attr_icon = icon
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_quick_alarm_{key}"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_quick_alarm_{key}"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info — grouped under the Quick Alarm device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_quick_alarm")},
-            name=f"HaWake {self.coordinator.device_name} - Quick Alarm",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_quick_alarm")},
+            name=f"Allarise {self.coordinator.device_name} - Quick Alarm",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 

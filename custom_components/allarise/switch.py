@@ -1,4 +1,4 @@
-"""Switch platform for HaWake Alarm integration."""
+"""Switch platform for Allarise Alarm integration."""
 
 from __future__ import annotations
 
@@ -10,48 +10,48 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[HaWakeCoordinator],
+    entry: ConfigEntry[AllariseCoordinator],
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HaWake switches."""
+    """Set up Allarise switches."""
     coordinator = entry.runtime_data
     async_add_entities([
-        HaWakeArmSwitch(coordinator),
-        HaWakeAlertVibrateSwitch(coordinator),
-        HaWakeAlertLoopMediaSwitch(coordinator),
+        AllariseArmSwitch(coordinator),
+        AllariseAlertVibrateSwitch(coordinator),
+        AllariseAlertLoopMediaSwitch(coordinator),
     ])
 
     # Register factory for dynamic per-alarm switch creation
-    def _switch_factory(coord: HaWakeCoordinator, alarm_index: int) -> list:
-        return [HaWakePerAlarmEnabledSwitch(coord, alarm_index)]
+    def _switch_factory(coord: AllariseCoordinator, alarm_index: int) -> list:
+        return [AllarisePerAlarmEnabledSwitch(coord, alarm_index)]
 
     coordinator.register_alarm_entity_factory(_switch_factory, async_add_entities)
 
 
-class HaWakeArmSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntity):
+class AllariseArmSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
     """Switch entity for arming/disarming the alarm system."""
 
     _attr_has_entity_name = True
     _attr_name = "Alarm Armed"
     _attr_icon = "mdi:shield-home"
 
-    def __init__(self, coordinator: HaWakeCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_alarm_armed"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_alarm_armed"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 
@@ -83,7 +83,7 @@ class HaWakeArmSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntity):
         self.async_write_ha_state()
 
 
-class HaWakePerAlarmEnabledSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntity):
+class AllarisePerAlarmEnabledSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
     """Per-alarm switch to enable/disable an individual alarm from HA."""
 
     _attr_has_entity_name = True
@@ -91,13 +91,13 @@ class HaWakePerAlarmEnabledSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEn
     _attr_icon = "mdi:alarm-check"
 
     def __init__(
-        self, coordinator: HaWakeCoordinator, alarm_index: int
+        self, coordinator: AllariseCoordinator, alarm_index: int
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
         self._alarm_index = alarm_index
         self._attr_unique_id = (
-            f"hawake_{coordinator.device_name}_alarm_{alarm_index}_enabled_switch"
+            f"allarise_{coordinator.device_name}_alarm_{alarm_index}_enabled_switch"
         )
 
     @property
@@ -105,13 +105,13 @@ class HaWakePerAlarmEnabledSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEn
         """Return device info — grouped under the per-alarm device."""
         alarm_name = self.coordinator.get_per_alarm_state(self._alarm_index, "name")
         if alarm_name in ("Unknown", ""):
-            display_name = f"HaWake {self.coordinator.device_name} - Alarm {self._alarm_index}"
+            display_name = f"Allarise {self.coordinator.device_name} - Alarm {self._alarm_index}"
         else:
-            display_name = f"HaWake {self.coordinator.device_name} - {alarm_name}"
+            display_name = f"Allarise {self.coordinator.device_name} - {alarm_name}"
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_alarm_{self._alarm_index}")},
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_alarm_{self._alarm_index}")},
             name=display_name,
-            manufacturer="HaWake",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 
@@ -148,25 +148,25 @@ class HaWakePerAlarmEnabledSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEn
         self.async_write_ha_state()
 
 
-class HaWakeAlertVibrateSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntity):
+class AllariseAlertVibrateSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
     """Switch to toggle vibration for HA alert alarms."""
 
     _attr_has_entity_name = True
     _attr_name = "Alert Vibrate"
     _attr_icon = "mdi:vibrate"
 
-    def __init__(self, coordinator: HaWakeCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_alert_vibrate_switch"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_alert_vibrate_switch"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 
@@ -194,25 +194,25 @@ class HaWakeAlertVibrateSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntit
         self.async_write_ha_state()
 
 
-class HaWakeAlertLoopMediaSwitch(CoordinatorEntity[HaWakeCoordinator], SwitchEntity):
+class AllariseAlertLoopMediaSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
     """Switch to toggle media looping for HA alert alarms."""
 
     _attr_has_entity_name = True
     _attr_name = "Alert Loop Media"
     _attr_icon = "mdi:repeat"
 
-    def __init__(self, coordinator: HaWakeCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_alert_loop_media_switch"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_alert_loop_media_switch"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 

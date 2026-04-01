@@ -1,4 +1,4 @@
-"""Text platform for HaWake Alarm integration."""
+"""Text platform for Allarise Alarm integration."""
 
 from __future__ import annotations
 
@@ -11,28 +11,28 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, TEXT_ENTITIES
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[HaWakeCoordinator],
+    entry: ConfigEntry[AllariseCoordinator],
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HaWake text entities."""
+    """Set up Allarise text entities."""
     coordinator = entry.runtime_data
     entities: list[TextEntity] = []
 
     for key, name_suffix, icon in TEXT_ENTITIES:
         entities.append(
-            HaWakeTextEntity(coordinator, key, name_suffix, icon)
+            AllariseTextEntity(coordinator, key, name_suffix, icon)
         )
 
     async_add_entities(entities)
 
 
-class HaWakeTextEntity(CoordinatorEntity[HaWakeCoordinator], TextEntity):
-    """A text entity for sending commands to HaWake (alert, create/update/delete alarm)."""
+class AllariseTextEntity(CoordinatorEntity[AllariseCoordinator], TextEntity):
+    """A text entity for sending commands to Allarise (alert, create/update/delete alarm)."""
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
@@ -40,7 +40,7 @@ class HaWakeTextEntity(CoordinatorEntity[HaWakeCoordinator], TextEntity):
 
     def __init__(
         self,
-        coordinator: HaWakeCoordinator,
+        coordinator: AllariseCoordinator,
         key: str,
         name_suffix: str,
         icon: str,
@@ -50,16 +50,16 @@ class HaWakeTextEntity(CoordinatorEntity[HaWakeCoordinator], TextEntity):
         self._key = key
         self._attr_name = name_suffix
         self._attr_icon = icon
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_{key}"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_{key}"
         self._attr_native_value = ""
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 

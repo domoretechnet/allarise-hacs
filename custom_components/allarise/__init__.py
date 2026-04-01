@@ -1,4 +1,4 @@
-"""The HaWake Alarm integration — MQTT-based."""
+"""The Allarise Alarm integration — MQTT-based."""
 
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-type HaWakeConfigEntry = ConfigEntry[HaWakeCoordinator]
+type AllariseConfigEntry = ConfigEntry[AllariseCoordinator]
 
 # ─── Service schemas ──────────────────────────────────────────────────
 
@@ -78,18 +78,18 @@ SCHEMA_SIMPLE = vol.Schema(
 
 def _find_coordinator(
     hass: HomeAssistant, device_name: str | None
-) -> HaWakeCoordinator | None:
+) -> AllariseCoordinator | None:
     """Find the coordinator for a given device name.
 
     If device_name is None or empty, auto-resolves to the only configured
-    entry when exactly one exists. Useful when only one HaWake device is set up.
+    entry when exactly one exists. Useful when only one Allarise device is set up.
     """
     entries = hass.config_entries.async_entries(DOMAIN)
     if not device_name:
         if len(entries) == 1:
             return entries[0].runtime_data
         _LOGGER.error(
-            "device_name is required when multiple HaWake devices are configured "
+            "device_name is required when multiple Allarise devices are configured "
             "(found %d). Available: %s",
             len(entries),
             [e.data.get(CONF_DEVICE_NAME) for e in entries],
@@ -108,12 +108,12 @@ def _build_payload(call: ServiceCall, exclude: set[str] | None = None) -> str:
     return json.dumps(data)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: HaWakeConfigEntry) -> bool:
-    """Set up HaWake Alarm from a config entry."""
+async def async_setup_entry(hass: HomeAssistant, entry: AllariseConfigEntry) -> bool:
+    """Set up Allarise Alarm from a config entry."""
     device_name = entry.data[CONF_DEVICE_NAME]
     topic_prefix = entry.data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
 
-    coordinator = HaWakeCoordinator(
+    coordinator = AllariseCoordinator(
         hass,
         device_name=device_name,
         topic_prefix=topic_prefix,
@@ -133,14 +133,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaWakeConfigEntry) -> bo
     if not hass.services.has_service(DOMAIN, SERVICE_UPDATE_ALARM):
         _register_services(hass)
 
-    _LOGGER.info("HaWake integration set up for %s (MQTT prefix: %s)", device_name, topic_prefix)
+    _LOGGER.info("Allarise integration set up for %s (MQTT prefix: %s)", device_name, topic_prefix)
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: HaWakeConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AllariseConfigEntry) -> bool:
     """Unload a config entry."""
-    coordinator: HaWakeCoordinator = entry.runtime_data
+    coordinator: AllariseCoordinator = entry.runtime_data
     await coordinator.async_shutdown()
 
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -160,7 +160,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaWakeConfigEntry) -> b
 
 
 def _register_services(hass: HomeAssistant) -> None:
-    """Register all HaWake custom services."""
+    """Register all Allarise custom services."""
 
     async def handle_update_alarm(call: ServiceCall) -> None:
         coordinator = _find_coordinator(hass, call.data.get(ATTR_DEVICE_NAME))

@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for HaWake Alarm integration — MQTT-based."""
+"""DataUpdateCoordinator for Allarise Alarm integration — MQTT-based."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 # Factory signature: (coordinator, alarm_index) -> list of entities
-AlarmEntityFactory = Callable[["HaWakeCoordinator", int], list[Entity]]
+AlarmEntityFactory = Callable[["AllariseCoordinator", int], list[Entity]]
 
 # Dashboard sensor keys that describe the currently active alarm.
 # These are suppressed (kept at their idle defaults) while an alert mission is active
@@ -48,8 +48,8 @@ _ACTIVE_ALARM_SENSOR_KEYS = frozenset({
 })
 
 
-class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator for HaWake Alarm data — subscribes to MQTT topics."""
+class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Coordinator for Allarise Alarm data — subscribes to MQTT topics."""
 
     @staticmethod
     def sanitize_device_name(name: str) -> str:
@@ -72,7 +72,7 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         super().__init__(
             hass,
             _LOGGER,
-            name=f"HaWake {device_name}",
+            name=f"Allarise {device_name}",
         )
         self.device_name = self.sanitize_device_name(device_name)
         self.topic_prefix = topic_prefix
@@ -189,7 +189,7 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._per_alarm_unskip_available.pop(alarm_index, None)
 
         device_reg = dr.async_get(self.hass)
-        device_id = (DOMAIN, f"hawake_{self.device_name}_alarm_{alarm_index}")
+        device_id = (DOMAIN, f"allarise_{self.device_name}_alarm_{alarm_index}")
         device_entry = device_reg.async_get_device(identifiers={device_id})
         if device_entry and self._config_entry_id:
             device_reg.async_update_device(
@@ -321,7 +321,7 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsubs.append(unsub)
 
         _LOGGER.info(
-            "HaWake MQTT subscriptions active for %s (prefix: %s)",
+            "Allarise MQTT subscriptions active for %s (prefix: %s)",
             self.device_name,
             self.topic_prefix,
         )
@@ -331,7 +331,7 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
-        _LOGGER.info("HaWake MQTT subscriptions removed for %s", self.device_name)
+        _LOGGER.info("Allarise MQTT subscriptions removed for %s", self.device_name)
 
     # ─── MQTT message handlers ────────────────────────────────────────
 
@@ -345,7 +345,7 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         if not self._app_online:
             _LOGGER.info(
-                "HaWake: inferred app online from data message for %s",
+                "Allarise: inferred app online from data message for %s",
                 self.device_name,
             )
             self._app_online = True
@@ -360,10 +360,10 @@ class HaWakeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._app_online = payload == "online"
         if self._app_online != was_online:
             _LOGGER.info(
-                "HaWake availability changed to %s for %s", payload, self.device_name
+                "Allarise availability changed to %s for %s", payload, self.device_name
             )
         else:
-            _LOGGER.debug("HaWake availability: %s", payload)
+            _LOGGER.debug("Allarise availability: %s", payload)
 
         # When the app goes offline, clear all active alarms.
         # They will be re-created when the app reconnects and

@@ -1,4 +1,4 @@
-"""Select platform for HaWake Alarm — sleep sound selector."""
+"""Select platform for Allarise Alarm — sleep sound selector."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +32,8 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HaWake select entities."""
-    coordinator: HaWakeCoordinator = entry.runtime_data
+    """Set up Allarise select entities."""
+    coordinator: AllariseCoordinator = entry.runtime_data
     async_add_entities([SleepSoundSelectEntity(coordinator)])
 
 
@@ -45,11 +45,11 @@ class SleepSoundSelectEntity(SelectEntity):
     _attr_icon = "mdi:music-note-bluetooth"
     _attr_options = SLEEP_SOUND_OPTIONS
 
-    def __init__(self, coordinator: HaWakeCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator) -> None:
         self._coordinator = coordinator
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_sleep_sound_select"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_sleep_sound_select"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"hawake_{coordinator.device_name}_dashboard")},
+            "identifiers": {(DOMAIN, f"allarise_{coordinator.device_name}_dashboard")},
         }
 
     @property

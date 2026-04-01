@@ -1,4 +1,4 @@
-"""Config flow for HaWake Alarm integration."""
+"""Config flow for Allarise Alarm integration."""
 
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ from .const import (
     DEFAULT_TOPIC_PREFIX,
     DOMAIN,
 )
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 
-class HaWakeConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for HaWake Alarm."""
+class AllariseConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Allarise Alarm."""
 
     VERSION = 2
 
@@ -39,7 +39,7 @@ class HaWakeConfigFlow(ConfigFlow, domain=DOMAIN):
             topic_prefix = user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
 
             # Check for duplicate device names
-            await self.async_set_unique_id(f"hawake_{device_name}")
+            await self.async_set_unique_id(f"allarise_{device_name}")
             self._abort_if_unique_id_configured()
 
             # Validate MQTT is available
@@ -47,7 +47,7 @@ class HaWakeConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "mqtt_not_configured"
             else:
                 return self.async_create_entry(
-                    title=f"HaWake - {device_name}",
+                    title=f"Allarise - {device_name}",
                     data={
                         CONF_DEVICE_NAME: device_name,
                         CONF_TOPIC_PREFIX: topic_prefix,
@@ -68,7 +68,7 @@ class HaWakeConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
             description_placeholders={
-                "docs_url": "https://hawake.app/docs/hass-api"
+                "docs_url": "https://allarise.app/docs/hass-api"
             },
         )
 
@@ -76,11 +76,11 @@ class HaWakeConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Return the options flow handler."""
-        return HaWakeOptionsFlow(config_entry)
+        return AllariseOptionsFlow(config_entry)
 
 
-class HaWakeOptionsFlow(OptionsFlow):
-    """Handle options for HaWake — lets users view their config."""
+class AllariseOptionsFlow(OptionsFlow):
+    """Handle options for Allarise — lets users view their config."""
 
     def __init__(self, config_entry) -> None:
         """Initialize options flow."""
@@ -95,7 +95,7 @@ class HaWakeOptionsFlow(OptionsFlow):
 
         device_name = self._config_entry.data.get(CONF_DEVICE_NAME, "Unknown")
         topic_prefix = self._config_entry.data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
-        sanitized = HaWakeCoordinator.sanitize_device_name(device_name)
+        sanitized = AllariseCoordinator.sanitize_device_name(device_name)
 
         return self.async_show_form(
             step_id="init",

@@ -1,4 +1,4 @@
-"""Number platform for HaWake Alarm integration — Sleep Sound volume slider."""
+"""Number platform for Allarise Alarm integration — Sleep Sound volume slider."""
 
 from __future__ import annotations
 
@@ -12,20 +12,20 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import HaWakeCoordinator
+from .coordinator import AllariseCoordinator
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[HaWakeCoordinator],
+    entry: ConfigEntry[AllariseCoordinator],
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HaWake number entities."""
+    """Set up Allarise number entities."""
     coordinator = entry.runtime_data
-    async_add_entities([HaWakeSleepSoundVolumeNumber(coordinator)])
+    async_add_entities([AllariseSleepSoundVolumeNumber(coordinator)])
 
 
-class HaWakeSleepSoundVolumeNumber(CoordinatorEntity[HaWakeCoordinator], NumberEntity):
+class AllariseSleepSoundVolumeNumber(CoordinatorEntity[AllariseCoordinator], NumberEntity):
     """Volume slider for the active Sleep Sound session (0–100)."""
 
     _attr_has_entity_name = True
@@ -36,18 +36,18 @@ class HaWakeSleepSoundVolumeNumber(CoordinatorEntity[HaWakeCoordinator], NumberE
     _attr_native_step = 1
     _attr_mode = NumberMode.SLIDER
 
-    def __init__(self, coordinator: HaWakeCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator) -> None:
         """Initialize the number entity."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"hawake_{coordinator.device_name}_sleep_sound_volume"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_sleep_sound_volume"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Group under the Dashboard device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, f"hawake_{self.coordinator.device_name}_dashboard")},
-            name=f"HaWake {self.coordinator.device_name} - Dashboard",
-            manufacturer="HaWake",
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
             model="iOS Alarm Clock",
         )
 

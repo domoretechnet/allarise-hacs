@@ -1,6 +1,6 @@
-"""Constants for the HaWake Alarm integration."""
+"""Constants for the Allarise Alarm integration."""
 
-DOMAIN = "hawake"
+DOMAIN = "allarise"
 PLATFORMS = ["sensor", "binary_sensor", "button", "switch", "media_player", "number", "select"]
 
 # Config keys
@@ -8,10 +8,10 @@ CONF_DEVICE_NAME = "device_name"
 CONF_TOPIC_PREFIX = "topic_prefix"
 
 DEFAULT_DEVICE_NAME = "iPhone"
-DEFAULT_TOPIC_PREFIX = "hawake"
+DEFAULT_TOPIC_PREFIX = "allarise"
 
 # ─── MQTT topic templates ────────────────────────────────────────────
-# {prefix} = user-configured topic prefix (default "hawake")
+# {prefix} = user-configured topic prefix (default "allarise")
 # {device}  = sanitised device name (lowercase, no special chars)
 
 # Availability

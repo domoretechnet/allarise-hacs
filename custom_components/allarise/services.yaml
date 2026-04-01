@@ -1,10 +1,10 @@
 update_alarm:
   name: Update Alarm
-  description: Update an existing alarm on the HaWake device.
+  description: Update an existing alarm on the Allarise device.
   fields:
     device_name:
       name: Device Name
-      description: "The HaWake device name. Optional if only one device is configured — auto-resolved."
+      description: "The Allarise device name. Optional if only one device is configured — auto-resolved."
       required: false
       selector:
         text:
@@ -92,11 +92,11 @@ update_alarm:
 
 trigger_alert:
   name: Trigger Alert
-  description: Trigger a full-screen alert on the HaWake device.
+  description: Trigger a full-screen alert on the Allarise device.
   fields:
     device_name:
       name: Device Name
-      description: "The HaWake device name. Optional if only one device is configured — auto-resolved."
+      description: "The Allarise device name. Optional if only one device is configured — auto-resolved."
       required: false
       selector:
         text:
@@ -152,7 +152,7 @@ dismiss:
   fields:
     device_name:
       name: Device Name
-      description: "The HaWake device name. Optional if only one device is configured — auto-resolved."
+      description: "The Allarise device name. Optional if only one device is configured — auto-resolved."
       required: false
       selector:
         text:
@@ -163,7 +163,7 @@ snooze:
   fields:
     device_name:
       name: Device Name
-      description: "The HaWake device name. Optional if only one device is configured — auto-resolved."
+      description: "The Allarise device name. Optional if only one device is configured — auto-resolved."
       required: false
       selector:
         text:
@@ -174,7 +174,7 @@ skip:
   fields:
     device_name:
       name: Device Name
-      description: "The HaWake device name. Optional if only one device is configured — auto-resolved."
+      description: "The Allarise device name. Optional if only one device is configured — auto-resolved."
       required: false
       selector:
         text:

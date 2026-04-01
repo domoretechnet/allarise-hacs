@@ -1,5 +1,5 @@
 {
-  "name": "HaWake Alarm",
+  "name": "Allarise Alarm",
   "render_readme": true,
   "domains": ["sensor", "binary_sensor", "button", "switch", "media_player", "number", "notify"],
   "homeassistant": "2024.1.0",
