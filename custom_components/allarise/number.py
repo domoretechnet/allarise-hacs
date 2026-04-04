@@ -29,7 +29,7 @@ class AllariseSleepSoundVolumeNumber(CoordinatorEntity[AllariseCoordinator], Num
     """Volume slider for the active Sleep Sound session (0–100)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Sleep Sound Volume"
+    _attr_name = "Sleep Volume"
     _attr_icon = "mdi:volume-high"
     _attr_native_min_value = 0
     _attr_native_max_value = 100
