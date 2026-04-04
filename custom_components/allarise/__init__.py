@@ -17,9 +17,7 @@ import homeassistant.helpers.config_validation as cv
 from .const import (
     CONF_DEVICE_NAME,
     CONF_TOPIC_PREFIX,
-    CONF_ZONE_SLUG,
     DEFAULT_TOPIC_PREFIX,
-    DEFAULT_ZONE_SLUG,
     DOMAIN,
     PLATFORMS,
 )
@@ -114,14 +112,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AllariseConfigEntry) -> 
     """Set up Allarise Alarm from a config entry."""
     device_name = entry.data[CONF_DEVICE_NAME]
     topic_prefix = entry.data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
-    zone_slug = entry.data.get(CONF_ZONE_SLUG, DEFAULT_ZONE_SLUG)
 
     coordinator = AllariseCoordinator(
         hass,
         device_name=device_name,
         topic_prefix=topic_prefix,
         config_entry_id=entry.entry_id,
-        zone_slug=zone_slug,
     )
 
     # Store coordinator in entry runtime data
@@ -137,7 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AllariseConfigEntry) -> 
     if not hass.services.has_service(DOMAIN, SERVICE_UPDATE_ALARM):
         _register_services(hass)
 
-    _LOGGER.info("Allarise integration set up for %s (MQTT prefix: %s, zone: %s)", device_name, topic_prefix, zone_slug)
+    _LOGGER.info("Allarise integration set up for %s (MQTT prefix: %s)", device_name, topic_prefix)
 
     return True
 

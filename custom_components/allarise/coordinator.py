@@ -16,18 +16,16 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     DASHBOARD_SENSORS,
-    DEFAULT_ZONE_SLUG,
     DOMAIN,
     PER_ALARM_SENSORS,
     SUB_ALARM_WILDCARD,
     SUB_AVAILABILITY,
-    SUB_ARM_STATE,
+    SUB_ARM_COMMAND_WILDCARD,
+    SUB_ARM_STATE_WILDCARD,
     SUB_COMMAND_STATUS_WILDCARD,
     SUB_DASHBOARD_WILDCARD,
     SUB_SENSOR_WILDCARD,
     TOPIC_ALARM_COMMAND,
-    TOPIC_ARM_COMMAND,
-    TOPIC_ARM_STATE,
     TOPIC_COMMAND,
     TOPIC_HA_STATUS,
 )
@@ -39,6 +37,9 @@ AlarmEntityFactory = Callable[["AllariseCoordinator", int], list[Entity]]
 
 # Factory signature: (coordinator, command_name) -> list of entities
 CommandEntityFactory = Callable[["AllariseCoordinator", str], list[Entity]]
+
+# Factory signature: (coordinator, zone_slug) -> list of entities
+ZoneEntityFactory = Callable[["AllariseCoordinator", str], list[Entity]]
 
 # Dashboard sensor keys that describe the currently active alarm.
 # These are suppressed (kept at their idle defaults) while an alert mission is active
@@ -72,7 +73,6 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         device_name: str,
         topic_prefix: str,
         config_entry_id: str = "",
-        zone_slug: str = DEFAULT_ZONE_SLUG,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -82,7 +82,6 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.device_name = self.sanitize_device_name(device_name)
         self.topic_prefix = topic_prefix
-        self._zone_slug = zone_slug
         self._config_entry_id = config_entry_id
 
         # State storage
@@ -90,7 +89,9 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._per_alarm_states: dict[int, dict[str, str]] = {}
         self._active_alarms: set[int] = set()
         self._app_online = False
-        self._arm_state = False
+        # Zone arm states — keyed by zone_slug, auto-discovered from MQTT topics
+        self._zone_arm_states: dict[str, bool] = {}
+        self._known_zones: set[str] = set()
 
         # Button availability
         self._dismiss_available = False
@@ -128,6 +129,11 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             tuple[CommandEntityFactory, AddEntitiesCallback]
         ] = []
 
+        # Per-platform factory + async_add_entities pairs for zone arm switches
+        self._zone_entity_factories: list[
+            tuple[ZoneEntityFactory, AddEntitiesCallback]
+        ] = []
+
         # Initialize default dashboard states
         for key, _, _, default in DASHBOARD_SENSORS:
             self._dashboard_states[key] = default
@@ -135,11 +141,10 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # ─── Topic helpers ────────────────────────────────────────────────
 
     def _topic(self, template: str, **kwargs: Any) -> str:
-        """Format a topic template with prefix, device name, and zone slug."""
+        """Format a topic template with prefix and device name."""
         return template.format(
             prefix=self.topic_prefix,
             device=self.device_name,
-            zone=self._zone_slug,
             **kwargs,
         )
 
@@ -200,6 +205,42 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_command_state(self, command_name: str) -> str:
         """Get the current state of a command sensor ("fired" or "idle")."""
         return self._command_states.get(command_name, "idle")
+
+    def register_zone_entity_factory(
+        self,
+        factory: ZoneEntityFactory,
+        async_add_entities: AddEntitiesCallback,
+    ) -> None:
+        """Register a per-zone entity factory for dynamic arm switch creation.
+
+        When a new alarm zone is discovered via MQTT, each registered factory
+        is called to create entities for that zone.
+
+        Factory signature: (coordinator, zone_slug) -> list[Entity]
+        """
+        self._zone_entity_factories.append((factory, async_add_entities))
+
+        # Create entities for any zones already discovered
+        for zone_slug in sorted(self._known_zones):
+            new_entities = factory(self, zone_slug)
+            if new_entities:
+                async_add_entities(new_entities)
+
+    def _create_entities_for_new_zone(self, zone_slug: str) -> None:
+        """Create switch entities for a newly discovered alarm zone."""
+        if zone_slug in self._known_zones:
+            return
+        self._known_zones.add(zone_slug)
+        _LOGGER.info("New alarm zone %r discovered — creating entities", zone_slug)
+
+        for factory, async_add_entities in self._zone_entity_factories:
+            new_entities = factory(self, zone_slug)
+            if new_entities:
+                async_add_entities(new_entities)
+
+    def get_zone_arm_state(self, zone_slug: str) -> bool:
+        """Return the current arm state for a zone (False if unknown)."""
+        return self._zone_arm_states.get(zone_slug, False)
 
     def _create_entities_for_new_alarm(self, alarm_index: int) -> None:
         """Create entities across all platforms for a newly discovered alarm."""
@@ -265,11 +306,6 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def app_online(self) -> bool:
         """Return whether the app is online."""
         return self._app_online
-
-    @property
-    def arm_state(self) -> bool:
-        """Return the arm state."""
-        return self._arm_state
 
     def get_dashboard_state(self, key: str) -> str:
         """Get a dashboard sensor state."""
@@ -342,15 +378,15 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         topic = self._topic(TOPIC_ALARM_COMMAND, index=alarm_index, cmd=cmd)
         await self.async_publish(topic, payload)
 
-    async def async_set_arm_state(self, armed: bool) -> None:
-        """Set the arm state — HA is the source of truth.
+    async def async_set_arm_state(self, armed: bool, zone_slug: str) -> None:
+        """Set the arm state for a zone — HA is the source of truth.
 
         Updates the coordinator state immediately (optimistic) and publishes
-        the new state retained to arm/state so the iOS app syncs on connect.
+        the new state retained to alarm/{zone}/state so the iOS app syncs on connect.
         """
-        self._arm_state = armed
+        self._zone_arm_states[zone_slug] = armed
         self.async_set_updated_data(self._dashboard_states)
-        topic = self._topic(TOPIC_ARM_STATE)
+        topic = f"{self.topic_prefix}/alarm/{zone_slug}/state"
         await mqtt.async_publish(self.hass, topic, "ON" if armed else "OFF", retain=True)
 
     # ─── MQTT setup / teardown ────────────────────────────────────────
@@ -362,10 +398,12 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             (self._topic(SUB_SENSOR_WILDCARD), self._handle_sensor_msg),
             (self._topic(SUB_DASHBOARD_WILDCARD), self._handle_dashboard_msg),
             (self._topic(SUB_ALARM_WILDCARD), self._handle_alarm_msg),
-            (self._topic(SUB_ARM_STATE), self._handle_arm_state_msg),
-            # arm/command — iOS app sends arm/disarm requests here;
-            # HA processes and republishes the authoritative state to arm/state.
-            (self._topic(TOPIC_ARM_COMMAND), self._handle_arm_command_msg),
+            # Zone arm state — wildcard discovers all zones automatically.
+            # alarm/{zone}/state is shared across phones; no {device} in the topic.
+            (self._topic(SUB_ARM_STATE_WILDCARD), self._handle_arm_state_msg),
+            # alarm/{zone}/set — iOS app sends arm/disarm requests here;
+            # HA processes and republishes the authoritative retained state back.
+            (self._topic(SUB_ARM_COMMAND_WILDCARD), self._handle_arm_command_msg),
             # command/{name}/status — app publishes "fired"/"idle" for each command
             (self._topic(SUB_COMMAND_STATUS_WILDCARD), self._handle_command_msg),
             (TOPIC_HA_STATUS, self._handle_ha_status_msg),
@@ -466,11 +504,6 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # ─────────────────────────────────────────────────────────────────
 
         self._dashboard_states[key] = payload
-
-        # Track arm state from sensor too
-        if key == "arm_state":
-            self._arm_state = payload == "ON"
-
         self.async_set_updated_data(self._dashboard_states)
 
     @callback
@@ -656,18 +689,27 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @callback
     def _handle_arm_state_msg(self, msg: mqtt.ReceiveMessage) -> None:
-        """Handle {prefix}/alarm/{zone}/state — HA's own retained publish arriving back.
+        """Handle {prefix}/alarm/{zone}/state — retained arm state for any zone.
 
-        This fires on the coordinator's own initial subscription delivery.
-        We update internal state so the switch entity reflects the broker's
-        retained value on integration startup.
+        The wildcard subscription delivers state for every zone that has ever
+        published. Zones are auto-discovered here; switch entities are created
+        dynamically on first encounter.
         """
         payload = msg.payload
         if isinstance(payload, bytes):
             payload = payload.decode("utf-8", errors="replace")
-        if payload in ("ON", "OFF"):
-            self._arm_state = payload == "ON"
-            self.async_set_updated_data(self._dashboard_states)
+        if payload not in ("ON", "OFF"):
+            return
+        # Topic: {prefix}/alarm/{zone}/state — zone is second-to-last segment
+        parts = msg.topic.split("/")
+        if len(parts) < 2 or parts[-1] != "state":
+            return
+        zone_slug = parts[-2]
+        if not zone_slug:
+            return
+        self._zone_arm_states[zone_slug] = payload == "ON"
+        self._create_entities_for_new_zone(zone_slug)
+        self.async_set_updated_data(self._dashboard_states)
 
     @callback
     def _handle_arm_command_msg(self, msg: mqtt.ReceiveMessage) -> None:
@@ -676,24 +718,33 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         HA is the source of truth. When the app requests a change, we honour it,
         update the HA entity, and re-publish the authoritative retained state to
         alarm/{zone}/state so every subscriber (including the app) receives the confirmation.
+        Zone is parsed from the topic so any zone is handled automatically.
         """
         payload = msg.payload
         if isinstance(payload, bytes):
             payload = payload.decode("utf-8", errors="replace")
         payload = payload.strip()
         if payload not in ("ON", "OFF"):
-            _LOGGER.warning("Unexpected arm/command payload: %r — ignoring", payload)
+            _LOGGER.warning("Unexpected arm set payload: %r — ignoring", payload)
+            return
+        # Topic: {prefix}/alarm/{zone}/set — zone is second-to-last segment
+        parts = msg.topic.split("/")
+        if len(parts) < 2 or parts[-1] != "set":
+            return
+        zone_slug = parts[-2]
+        if not zone_slug:
             return
         armed = payload == "ON"
-        _LOGGER.debug("Arm command from app: %s", payload)
-        self._arm_state = armed
+        _LOGGER.debug("Arm command from app for zone %r: %s", zone_slug, payload)
+        self._zone_arm_states[zone_slug] = armed
+        self._create_entities_for_new_zone(zone_slug)
         self.async_set_updated_data(self._dashboard_states)
         # Re-publish authoritative retained state so the app and any other
         # subscriber gets the confirmed value back immediately.
         self.hass.async_create_task(
             mqtt.async_publish(
                 self.hass,
-                self._topic(TOPIC_ARM_STATE),
+                f"{self.topic_prefix}/alarm/{zone_slug}/state",
                 "ON" if armed else "OFF",
                 retain=True,
             )
@@ -703,18 +754,19 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _handle_ha_status_msg(self, msg: mqtt.ReceiveMessage) -> None:
         """Handle homeassistant/status — HA just came online.
 
-        Re-publish the current arm state retained so that any iOS app instance
-        that was connected before HA restarted re-syncs immediately.
+        Re-publish the retained arm state for every known zone so that any
+        iOS app instance that was connected before HA restarted re-syncs immediately.
         """
         _LOGGER.debug("HA status: %s", msg.payload)
-        self.hass.async_create_task(
-            mqtt.async_publish(
-                self.hass,
-                self._topic(TOPIC_ARM_STATE),
-                "ON" if self._arm_state else "OFF",
-                retain=True,
+        for zone_slug, armed in self._zone_arm_states.items():
+            self.hass.async_create_task(
+                mqtt.async_publish(
+                    self.hass,
+                    f"{self.topic_prefix}/alarm/{zone_slug}/state",
+                    "ON" if armed else "OFF",
+                    retain=True,
+                )
             )
-        )
 
     # ─── DataUpdateCoordinator override ───────────────────────────────
 

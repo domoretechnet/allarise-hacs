@@ -21,7 +21,6 @@ async def async_setup_entry(
     """Set up Allarise switches."""
     coordinator = entry.runtime_data
     async_add_entities([
-        AllariseArmSwitch(coordinator),
         AllariseAlertVibrateSwitch(coordinator),
         AllariseAlertLoopMediaSwitch(coordinator),
     ])
@@ -32,22 +31,37 @@ async def async_setup_entry(
 
     coordinator.register_alarm_entity_factory(_switch_factory, async_add_entities)
 
+    # Register factory for dynamic zone arm switch creation.
+    # Switches are created automatically when a zone publishes to MQTT for the first time.
+    def _zone_factory(coord: AllariseCoordinator, zone_slug: str) -> list:
+        return [AllariseZoneArmSwitch(coord, zone_slug)]
 
-class AllariseArmSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
-    """Switch entity for arming/disarming the alarm system."""
+    coordinator.register_zone_entity_factory(_zone_factory, async_add_entities)
+
+
+class AllariseZoneArmSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
+    """Switch entity for arming/disarming a named alarm zone.
+
+    Created dynamically when a zone publishes to MQTT for the first time.
+    Multiple phones sharing the same zone name share this MQTT topic and
+    therefore this switch reflects the combined household arm state.
+    """
 
     _attr_has_entity_name = True
-    _attr_name = "Alarm Armed"
     _attr_icon = "mdi:shield-home"
 
-    def __init__(self, coordinator: AllariseCoordinator) -> None:
+    def __init__(self, coordinator: AllariseCoordinator, zone_slug: str) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"allarise_{coordinator.device_name}_alarm_armed"
+        self._zone_slug = zone_slug
+        # Display name: "home" → "Home Armed", "my_garage" → "My Garage Armed"
+        display = zone_slug.replace("_", " ").title()
+        self._attr_name = f"{display} Armed"
+        self._attr_unique_id = f"allarise_{coordinator.device_name}_zone_{zone_slug}_armed"
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device info."""
+        """Return device info — grouped under the Dashboard device."""
         return DeviceInfo(
             identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
             name=f"Allarise {self.coordinator.device_name} - Dashboard",
@@ -60,22 +74,22 @@ class AllariseArmSwitch(CoordinatorEntity[AllariseCoordinator], SwitchEntity):
         """Always available — HA is the source of truth for arm state.
 
         The switch can be toggled from HA even when the iOS app is offline.
-        The app will pick up the retained arm/state on its next connection.
+        The app picks up the retained state on its next connection.
         """
         return True
 
     @property
     def is_on(self) -> bool:
-        """Return the current arm state."""
-        return self.coordinator.arm_state
+        """Return the current arm state for this zone."""
+        return self.coordinator.get_zone_arm_state(self._zone_slug)
 
     async def async_turn_on(self, **kwargs) -> None:
-        """Arm — HA sets state and publishes retained to arm/state."""
-        await self.coordinator.async_set_arm_state(True)
+        """Arm — HA sets state and publishes retained to alarm/{zone}/state."""
+        await self.coordinator.async_set_arm_state(True, self._zone_slug)
 
     async def async_turn_off(self, **kwargs) -> None:
-        """Disarm — HA sets state and publishes retained to arm/state."""
-        await self.coordinator.async_set_arm_state(False)
+        """Disarm — HA sets state and publishes retained to alarm/{zone}/state."""
+        await self.coordinator.async_set_arm_state(False, self._zone_slug)
 
     @callback
     def _handle_coordinator_update(self) -> None:
