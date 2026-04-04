@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DASHBOARD_SENSORS, DOMAIN, PER_ALARM_SENSORS
-from .coordinator import AllariseCoordinator
+from .coordinator import AllariseCoordinator, CommandEntityFactory
 
 
 async def async_setup_entry(
@@ -38,6 +38,12 @@ async def async_setup_entry(
         ]
 
     coordinator.register_alarm_entity_factory(_sensor_factory, async_add_entities)
+
+    # Register factory for dynamic command sensor creation
+    def _command_sensor_factory(coord: AllariseCoordinator, command_name: str) -> list:
+        return [AllariseCommandSensor(coord, command_name)]
+
+    coordinator.register_command_entity_factory(_command_sensor_factory, async_add_entities)
 
 
 class AllariseDashboardSensor(CoordinatorEntity[AllariseCoordinator], SensorEntity):
@@ -141,4 +147,54 @@ class AllarisePerAlarmSensor(CoordinatorEntity[AllariseCoordinator], SensorEntit
         """Handle updated data from the coordinator."""
         if self.coordinator.is_alarm_removed(self._alarm_index):
             return
+        self.async_write_ha_state()
+
+
+class AllariseCommandSensor(CoordinatorEntity[AllariseCoordinator], SensorEntity):
+    """A sensor for an arm-widget command — grouped under the Dashboard device.
+
+    One entity is dynamically created per command name the first time the app
+    publishes {prefix}/{device}/command/{name}/status = fired|idle.
+    """
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: AllariseCoordinator,
+        command_name: str,
+    ) -> None:
+        """Initialize the command sensor."""
+        super().__init__(coordinator)
+        self._command_name = command_name
+        # Display name is the raw command name (e.g. "lr_shutdown" → "lr_shutdown")
+        self._attr_name = command_name.replace("_", " ").title()
+        self._attr_icon = "mdi:console"
+        self._attr_unique_id = (
+            f"allarise_{coordinator.device_name}_command_{command_name}"
+        )
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info — command sensors live on the Dashboard device."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"allarise_{self.coordinator.device_name}_dashboard")},
+            name=f"Allarise {self.coordinator.device_name} - Dashboard",
+            manufacturer="Allarise",
+            model="iOS Alarm Clock",
+        )
+
+    @property
+    def available(self) -> bool:
+        """Return True if the app is online."""
+        return self.coordinator.app_online
+
+    @property
+    def native_value(self) -> str:
+        """Return 'fired' or 'idle'."""
+        return self.coordinator.get_command_state(self._command_name)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
         self.async_write_ha_state()

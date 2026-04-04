@@ -46,6 +46,8 @@ SUB_DASHBOARD_WILDCARD = "{prefix}/{device}/dashboard/#"
 SUB_ALARM_WILDCARD = "{prefix}/{device}/alarm/+/#"
 SUB_AVAILABILITY = "{prefix}/{device}/availability"
 SUB_ARM_STATE = "{prefix}/{device}/arm/state"
+# Command status — app publishes {name}/status = fired|idle for each fired command
+SUB_COMMAND_STATUS_WILDCARD = "{prefix}/{device}/command/+/status"
 
 # Home Assistant birth topic
 TOPIC_HA_STATUS = "homeassistant/status"
@@ -89,6 +91,8 @@ DASHBOARD_SENSORS = [
     ("quick_alarm_count", "Quick Alarm Count", "mdi:counter", "0"),
     # ── Sleep Sounds ───────────────────────────────────────────────────
     ("sleep_sound_volume", "Sleep Sound Volume", "mdi:volume-high", "0"),
+    # ── Arm Widget Commands ────────────────────────────────────────────
+    ("arm_custom_command", "Last Command Fired", "mdi:console", "None"),
 ]
 
 # Per-alarm sensor definitions: (key, name_suffix, icon, default_value)

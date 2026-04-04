@@ -21,6 +21,7 @@ from .const import (
     SUB_ALARM_WILDCARD,
     SUB_AVAILABILITY,
     SUB_ARM_STATE,
+    SUB_COMMAND_STATUS_WILDCARD,
     SUB_DASHBOARD_WILDCARD,
     SUB_SENSOR_WILDCARD,
     TOPIC_ALARM_COMMAND,
@@ -34,6 +35,9 @@ _LOGGER = logging.getLogger(__name__)
 
 # Factory signature: (coordinator, alarm_index) -> list of entities
 AlarmEntityFactory = Callable[["AllariseCoordinator", int], list[Entity]]
+
+# Factory signature: (coordinator, command_name) -> list of entities
+CommandEntityFactory = Callable[["AllariseCoordinator", str], list[Entity]]
 
 # Dashboard sensor keys that describe the currently active alarm.
 # These are suppressed (kept at their idle defaults) while an alert mission is active
@@ -112,6 +116,15 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             tuple[AlarmEntityFactory, AddEntitiesCallback]
         ] = []
 
+        # Dynamic command sensor state: command_name → "fired" | "idle"
+        self._command_states: dict[str, str] = {}
+        # Command names that already have entities created for them
+        self._known_commands: set[str] = set()
+        # Per-platform factory + async_add_entities pairs for command sensors
+        self._command_entity_factories: list[
+            tuple[CommandEntityFactory, AddEntitiesCallback]
+        ] = []
+
         # Initialize default dashboard states
         for key, _, _, default in DASHBOARD_SENSORS:
             self._dashboard_states[key] = default
@@ -147,6 +160,42 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             new_entities = factory(self, alarm_index)
             if new_entities:
                 async_add_entities(new_entities)
+
+    def register_command_entity_factory(
+        self,
+        factory: CommandEntityFactory,
+        async_add_entities: AddEntitiesCallback,
+    ) -> None:
+        """Register a per-command entity factory for dynamic command sensor creation.
+
+        When a new command name appears via command/+/status, each registered
+        factory is called to create sensor entities for that command.
+
+        Factory signature: (coordinator, command_name) -> list[Entity]
+        """
+        self._command_entity_factories.append((factory, async_add_entities))
+
+        # Create entities for any command names already discovered
+        for command_name in sorted(self._known_commands):
+            new_entities = factory(self, command_name)
+            if new_entities:
+                async_add_entities(new_entities)
+
+    def _create_entities_for_new_command(self, command_name: str) -> None:
+        """Create sensor entities for a newly discovered command name."""
+        if command_name in self._known_commands:
+            return
+        self._known_commands.add(command_name)
+        _LOGGER.info("New command %r discovered — creating sensor entity", command_name)
+
+        for factory, async_add_entities in self._command_entity_factories:
+            new_entities = factory(self, command_name)
+            if new_entities:
+                async_add_entities(new_entities)
+
+    def get_command_state(self, command_name: str) -> str:
+        """Get the current state of a command sensor ("fired" or "idle")."""
+        return self._command_states.get(command_name, "idle")
 
     def _create_entities_for_new_alarm(self, alarm_index: int) -> None:
         """Create entities across all platforms for a newly discovered alarm."""
@@ -313,6 +362,8 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # arm/command — iOS app sends arm/disarm requests here;
             # HA processes and republishes the authoritative state to arm/state.
             (self._topic(TOPIC_ARM_COMMAND), self._handle_arm_command_msg),
+            # command/{name}/status — app publishes "fired"/"idle" for each command
+            (self._topic(SUB_COMMAND_STATUS_WILDCARD), self._handle_command_msg),
             (TOPIC_HA_STATUS, self._handle_ha_status_msg),
         ]
 
@@ -567,6 +618,37 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return
 
             self.async_set_updated_data(self._dashboard_states)
+
+    @callback
+    def _handle_command_msg(self, msg: mqtt.ReceiveMessage) -> None:
+        """Handle {prefix}/{device}/command/{name}/status — command fired/idle.
+
+        Dynamically creates a Dashboard sensor entity the first time each
+        command name is seen, then updates its state to "fired" or "idle".
+        """
+        payload = msg.payload
+        if isinstance(payload, bytes):
+            payload = payload.decode("utf-8", errors="replace")
+        payload = payload.strip().lower()
+
+        # Extract command name from topic: …/command/{name}/status
+        parts = msg.topic.split("/")
+        # Expect: prefix / device / command / {name} / status
+        try:
+            cmd_idx = parts.index("command") + 1
+            command_name = parts[cmd_idx]
+        except (ValueError, IndexError):
+            return
+
+        if not command_name or command_name == "status":
+            return
+
+        self._command_states[command_name] = payload
+
+        # Create entities for this command if we haven't seen it before
+        self._create_entities_for_new_command(command_name)
+
+        self.async_set_updated_data(self._dashboard_states)
 
     @callback
     def _handle_arm_state_msg(self, msg: mqtt.ReceiveMessage) -> None:
