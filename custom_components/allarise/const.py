@@ -91,6 +91,8 @@ DASHBOARD_SENSORS = [
     ("quick_alarm_count", "Quick Alarm Count", "mdi:counter", "0"),
     # ── Sleep Sounds ───────────────────────────────────────────────────
     ("sleep_sound_volume", "Sleep Volume", "mdi:volume-high", "0"),
+    # ── System Volume ──────────────────────────────────────────────────
+    ("system_volume", "System Volume", "mdi:volume-high", "Unknown"),
     # ── Arm Widget Commands ────────────────────────────────────────────
     ("arm_custom_command", "Last Command Fired", "mdi:console", "None"),
 ]
