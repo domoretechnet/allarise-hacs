@@ -14,10 +14,12 @@ from .coordinator import AllariseCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Must match the filenames (without .m4a) bundled in the iOS app's Sleep Sounds folder.
-# "none" represents stopped / no sound playing.
-SLEEP_SOUND_OPTIONS = [
-    "none",
+# Fallback list used until the iOS app publishes its full sleep sound inventory
+# (bundled + custom) on the retained sensor/sleep_sounds_available topic. After the
+# first publish arrives, `options` is driven entirely by the coordinator's cache,
+# so custom sleep sounds imported in the app show up automatically and disappear
+# when removed.
+_FALLBACK_SLEEP_SOUND_OPTIONS = [
     "Brown_Noise",
     "Fan",
     "Light_Rain",
@@ -43,7 +45,6 @@ class SleepSoundSelectEntity(SelectEntity):
     _attr_has_entity_name = True
     _attr_name = "Sleep Sound"
     _attr_icon = "mdi:music-note-bluetooth"
-    _attr_options = SLEEP_SOUND_OPTIONS
 
     def __init__(self, coordinator: AllariseCoordinator) -> None:
         self._coordinator = coordinator
@@ -57,9 +58,15 @@ class SleepSoundSelectEntity(SelectEntity):
         return self._coordinator.app_online
 
     @property
+    def options(self) -> list[str]:
+        advertised = self._coordinator.get_available_sleep_sounds()
+        source = advertised or _FALLBACK_SLEEP_SOUND_OPTIONS
+        return ["none", *source]
+
+    @property
     def current_option(self) -> str:
         val = self._coordinator.get_dashboard_state("sleep_sound")
-        return val if val in SLEEP_SOUND_OPTIONS else "none"
+        return val if val in self.options else "none"
 
     async def async_select_option(self, option: str) -> None:
         if option == "none":

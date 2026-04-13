@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -90,6 +91,8 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._per_alarm_states: dict[int, dict[str, str]] = {}
         self._active_alarms: set[int] = set()
         self._app_online = False
+        # Sleep sound inventory — published by the app as a JSON array of MQTT names
+        self._available_sleep_sounds: list[str] = []
         # Zone arm states — keyed by zone_slug, auto-discovered from MQTT topics
         self._zone_arm_states: dict[str, bool] = {}
         self._known_zones: set[str] = set()
@@ -403,6 +406,14 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         state = self.get_dashboard_state("quick_alarm")
         return state not in ("none", "Unknown")
 
+    def get_available_sleep_sounds(self) -> list[str]:
+        """Return the list of MQTT names the app has advertised as available.
+
+        Empty until the app's first retained publish arrives; callers should fall
+        back to a static list in that case.
+        """
+        return list(self._available_sleep_sounds)
+
     # ─── MQTT publish helper ──────────────────────────────────────────
 
     async def async_publish(self, topic: str, payload: str) -> None:
@@ -523,6 +534,19 @@ class AllariseCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if len(parts) < 1:
             return
         key = parts[-1]
+
+        # Sleep sound inventory — published as a JSON array of MQTT names.
+        # Drives the dynamic options on the Sleep Sound select entity.
+        if key == "sleep_sounds_available":
+            try:
+                parsed = json.loads(payload) if payload else []
+            except json.JSONDecodeError:
+                _LOGGER.warning("Invalid sleep_sounds_available payload: %s", payload)
+                return
+            if isinstance(parsed, list):
+                self._available_sleep_sounds = [str(s) for s in parsed]
+                self.async_set_updated_data(self._dashboard_states)
+            return
 
         # ── Alert-mission suppression ────────────────────────────────────
         # When active_alarm_mission = "alert" arrives, enter suppression mode:
