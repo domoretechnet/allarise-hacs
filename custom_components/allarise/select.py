@@ -24,6 +24,8 @@ _FALLBACK_SLEEP_SOUND_OPTIONS = [
     "Fan",
     "Light_Rain",
     "Mountain_Stream",
+    "Rainforest_Birds",
+    "Sea_Waves",
     "Summer_Rain",
     "white_noise",
 ]
